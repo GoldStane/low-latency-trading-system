@@ -1,10 +1,36 @@
 cmake_minimum_required(VERSION 3.20)
-project(low_latency_trading_system LANGUAGES NONE)
+project(low_latency_trading_system LANGUAGES CXX)
 
-# The initial milestone is offline Python tooling. Enable CXX when runtime
-# targets are introduced; do not require a compiler for offline analysis.
+add_library(trading_book cpp/order_book/order_book.cpp)
+target_include_directories(trading_book PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/cpp")
+target_compile_features(trading_book PUBLIC cxx_std_20)
+set_target_properties(trading_book PROPERTIES CXX_EXTENSIONS OFF)
+if(MSVC)
+    target_compile_options(trading_book PRIVATE /W4)
+else()
+    target_compile_options(trading_book PRIVATE -Wall -Wextra -Wpedantic)
+endif()
+
+option(ENABLE_SANITIZERS "Enable ASan and UBSan (Clang/GCC)" OFF)
+if(ENABLE_SANITIZERS)
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        message(FATAL_ERROR "Sanitizers require Clang or GCC")
+    endif()
+    target_compile_options(trading_book PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(trading_book PUBLIC -fsanitize=address,undefined)
+endif()
+
+option(BUILD_BENCHMARKS "Build standalone order book baseline benchmark" OFF)
+if(BUILD_BENCHMARKS)
+    add_executable(order_book_benchmark benchmarks/order_book_benchmark.cpp)
+    target_link_libraries(order_book_benchmark PRIVATE trading_book)
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
+    add_executable(order_book_tests tests/unit/test_order_book.cpp)
+    target_link_libraries(order_book_tests PRIVATE trading_book)
+    add_test(NAME order_book COMMAND order_book_tests)
     find_package(Python3 3.10 REQUIRED COMPONENTS Interpreter)
     add_test(NAME market_data_analysis
         COMMAND "${Python3_EXECUTABLE}" -m unittest discover -s tests/unit -v)
