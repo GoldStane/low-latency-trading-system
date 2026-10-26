@@ -2,8 +2,8 @@
 
 This milestone implements an in-memory, single-owner component, not a trading
 runtime. It has no broker connection, file parser, strategy, or background thread.
-The Python LOBSTER analyzer remains independent. Connecting historical inputs to
-this component requires a subsequent C++ adapter and replay milestone.
+The Python LOBSTER analyzer remains independent. Historical normalized CSV inputs
+now connect through the separate [Milestone 3 adapter and replay](cpp-historical-replay.md).
 
 ## Contract and design decisions
 

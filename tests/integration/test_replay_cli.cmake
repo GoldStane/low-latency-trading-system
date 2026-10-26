@@ -1,0 +1,33 @@
+set(snapshot "${SOURCE}/data/sample/book_snapshot.csv")
+set(updates "${SOURCE}/data/sample/book_updates.csv")
+set(expected "instrument=1\nsnapshot_events=4\nupdate_events=6\nlast_sequence=109\nbid_levels=2\nask_levels=2\nbest_bid=10001\nbest_bid_quantity=25\nbest_ask=10003\nbest_ask_quantity=35\nstate=VALID\n")
+foreach(attempt RANGE 1 2)
+    execute_process(COMMAND "${REPLAY}" --snapshot "${snapshot}" --updates "${updates}" --tick-size 0.01
+        RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    if(NOT result EQUAL 0 OR NOT output STREQUAL expected OR NOT error STREQUAL "")
+        message(FATAL_ERROR "Replay failed: ${result}, ${output}, ${error}")
+    endif()
+endforeach()
+function(expect_failure)
+    execute_process(COMMAND "${REPLAY}" ${ARGN}
+        RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    if(result EQUAL 0 OR NOT output STREQUAL "" OR error STREQUAL "")
+        message(FATAL_ERROR "Expected failure without stdout: ${result}, ${output}, ${error}")
+    endif()
+endfunction()
+expect_failure()
+expect_failure(--snapshot)
+expect_failure(--unknown value)
+expect_failure(--snapshot "${snapshot}" --snapshot "${snapshot}")
+expect_failure(--snapshot "${snapshot}.missing" --updates "${updates}" --tick-size 0.01)
+expect_failure(--snapshot "${snapshot}" --updates "${updates}.missing" --tick-size 0.01)
+expect_failure(--snapshot "${snapshot}" --updates "${updates}" --tick-size 0)
+expect_failure(--snapshot "${snapshot}" --updates "${updates}" --tick-size 0.03)
+expect_failure(--snapshot "${snapshot}" --updates "${snapshot}" --tick-size 0.01)
+# Keep the empty argument explicit: expanding ARGN would discard it.
+execute_process(COMMAND "${REPLAY}" --snapshot "${snapshot}" --updates "${updates}"
+    --tick-size "" --tick-size 0.01
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(result EQUAL 0 OR NOT output STREQUAL "" OR NOT error MATCHES "empty option value")
+    message(FATAL_ERROR "Empty option value was not rejected: ${result}, ${output}, ${error}")
+endif()

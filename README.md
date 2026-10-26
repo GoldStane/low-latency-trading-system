@@ -1,8 +1,13 @@
 # low-latency-trading-system
-Event-driven C++ trading system with market-data processing, limit order book, strategy and risk engines, order management, exchange simulation, broker integration, and autonomous Linux deployment.
+An event-driven C++ trading-system project, currently implementing offline
+market-data analysis, a price-level order book, and historical normalized-data replay.
 
-Implemented milestones: offline market-data analysis in Python, and a C++20
-event model with a deterministic price-level order book.
+Implemented milestones:
+
+- Milestone 1: offline market-data analysis
+- Milestone 2: C++ event model + price-level order book
+- Milestone 3: C++ historical normalized-data replay
+
 The C++ trading runtime is planned; no live trading functionality is enabled.
 
 ## Analyze sample book updates
@@ -51,3 +56,24 @@ invariants. Read the [file-by-file C++ and syntax guide](docs/cpp-order-book.md)
 for interfaces, design decisions, examples, tests, and benchmark instructions.
 
 The CMake build now requires a C++20 compiler. Python analysis still runs independently.
+
+## Milestone 3: C++ historical replay
+
+The streaming `trading_market_data` reader converts normalized CSV prices exactly
+to integer ticks. `trading_replay` initializes a book from an explicit snapshot,
+finishes synchronization, and applies incremental updates in file order. Invalid
+input or book transitions stop replay immediately.
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+ctest --test-dir build --output-on-failure
+./build/historical_replay --snapshot data/sample/book_snapshot.csv \
+    --updates data/sample/book_updates.csv --tick-size 0.01
+```
+
+The deterministic summary reports prices in integer ticks. Read the
+[historical replay guide](docs/cpp-historical-replay.md) for the lifecycle,
+error handling, limitations, and sanitizer commands. The sample files are synthetic;
+the existing multi-instrument `trades.csv` remains for Python analysis.
+Live feeds, broker integration, strategies, and production trading remain unimplemented.
