@@ -1,6 +1,6 @@
 #include "replay/historical_replay.hpp"
 
-#include <limits>
+#include "market_data/normalized_csv_source.hpp"
 
 namespace trading {
 namespace {
@@ -22,11 +22,6 @@ const char* name(BookError error) {
     return "UnknownBookError";
 }
 
-void count(std::uint64_t& value) {
-    if (value == std::numeric_limits<std::uint64_t>::max())
-        throw std::overflow_error("event count overflow");
-    ++value;
-}
 } // namespace
 
 ReplayError::ReplayError(const std::string& phase, std::size_t line, BookError error)
@@ -34,41 +29,16 @@ ReplayError::ReplayError(const std::string& phase, std::size_t line, BookError e
 
 ReplaySummary HistoricalReplay::run(std::istream& snapshot, std::istream& updates,
                                      const DecimalTickSize& tick_size) {
-    book_.reset();
-    ReplaySummary summary{};
-    std::string phase = "snapshot";
+    handler_ = OrderBookMarketDataHandler{};
+    NormalizedCsvMarketDataSource source{snapshot, updates, tick_size, handler_};
     try {
-        NormalizedCsvReader initial{snapshot, tick_size};
-        while (const auto update = initial.next()) {
-            if (!book_) {
-                summary.instrument = update->instrument;
-                book_.emplace(update->instrument);
-                book_->begin_sync();
-            }
-            if (update->type != UpdateType::Add)
-                throw CsvError(initial.line(), "snapshot rows must use ADD");
-            const auto error = book_->apply(*update);
-            if (error != BookError::None) throw ReplayError(phase, initial.line(), error);
-            count(summary.snapshot_events);
-        }
-        if (!book_) throw ReplayError(phase, initial.line(), BookError::IncompleteBook);
-        const auto error = book_->finish_sync();
-        if (error != BookError::None) throw ReplayError(phase, initial.line(), error);
-
-        phase = "updates";
-        NormalizedCsvReader incremental{updates, tick_size};
-        while (const auto update = incremental.next()) {
-            const auto result = book_->apply(*update);
-            if (result != BookError::None) throw ReplayError(phase, incremental.line(), result);
-            count(summary.update_events);
-        }
-        return summary;
+        source.start();
+        while (source.poll()) {}
+        return {source.instrument(), source.snapshot_events(), source.update_events()};
+    } catch (const BookDispatchError& error) {
+        throw ReplayError(source.phase(), source.line(), error.book_error());
     } catch (const CsvError& error) {
-        if (book_) book_->clear();
-        throw std::runtime_error(phase + " " + error.what());
-    } catch (...) {
-        if (book_ && book_->state() != MarketDataState::Invalid) book_->clear();
-        throw;
+        throw std::runtime_error(std::string(source.phase()) + " " + error.what());
     }
 }
 } // namespace trading

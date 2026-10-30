@@ -1,7 +1,7 @@
 #pragma once
 
 #include "market_data/normalized_csv_reader.hpp"
-#include "order_book/order_book.hpp"
+#include "runtime/order_book_market_data_handler.hpp"
 
 namespace trading {
 class ReplayError : public std::runtime_error {
@@ -26,8 +26,8 @@ class HistoricalReplay {
 public:
     [[nodiscard]] ReplaySummary run(std::istream& snapshot, std::istream& updates,
                                     const DecimalTickSize& tick_size);
-    [[nodiscard]] const std::optional<OrderBook>& book() const noexcept { return book_; }
+    [[nodiscard]] const std::optional<OrderBook>& book() const noexcept { return handler_.book(); }
 private:
-    std::optional<OrderBook> book_;
+    OrderBookMarketDataHandler handler_;
 };
 } // namespace trading

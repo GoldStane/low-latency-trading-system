@@ -6,6 +6,11 @@ as-fast-as-possible replay tool. It does not authorize or implement trading.
 The event types, book implementation, Python analyzers, existing tests, and
 multi-instrument Python sample are unchanged.
 
+The current implementation routes replay through the [generic event pipeline](event-pipeline.md).
+The observable contract and CLI below are preserved. Snapshot serialization now
+belongs to `NormalizedCsvMarketDataSource`, while the provider-neutral
+`OrderBookMarketDataHandler` owns book application and synchronization.
+
 ## Files and boundaries
 
 - `cpp/market_data/normalized_csv_reader.hpp/.cpp`: `DecimalTickSize`,
@@ -13,8 +18,8 @@ multi-instrument Python sample are unchanged.
   one event at a time. It intentionally does not check sequence continuity,
   timestamp ordering, instrument consistency, or level existence.
 - `cpp/replay/historical_replay.hpp/.cpp`: `HistoricalReplay`, `ReplaySummary`,
-  and `ReplayError`. Owns the book, enforces the snapshot ADD-only contract, and
-  delegates all book-state validation to `OrderBook::apply()` and `finish_sync()`.
+  and `ReplayError`. Composes the CSV source and book handler, preserving summary/error compatibility.
+  Book-state validation still belongs to `OrderBook::apply()` and `finish_sync()`.
 - `cpp/replay/main.cpp`: `historical_replay` CLI, file ownership and summary output.
 - `data/sample/book_snapshot.csv` and `book_updates.csv`: synthetic two-sided,
   multi-level snapshot plus ADD/MODIFY/DELETE updates changing both best prices.
@@ -24,9 +29,10 @@ multi-instrument Python sample are unchanged.
 - `tests/integration/test_replay_cli.cmake`: exact CLI output, repeatability,
   argument/file/input failures, and absence of stdout on failure.
 
-CMake provides `trading_market_data`, `trading_replay`, and `historical_replay`
-alongside the existing `trading_book`. No third-party parsing dependency or book
-API addition is required. These boundaries follow AGENTS.md §5, §7–9 and §49.
+CMake provides `trading_market_data`, `trading_runtime_core`, `trading_replay`,
+and `historical_replay` alongside the existing `trading_book`. No third-party
+parsing dependency or book API addition is required. These boundaries follow
+AGENTS.md §5, §7–9 and §49.
 
 ## Normalized input contract
 
@@ -173,15 +179,17 @@ Tests exercise integer maxima, malformed/overflowing representations, quote and
 line handling, exact tick conversion and alignment, stream errors, snapshot
 completion, update transitions, fail-closed errors, and two independent replays
 with identical observable results. CLI tests also replay the committed files twice.
-The existing benchmark continues to measure book operations only. No replay
-benchmark, parsing-throughput estimate, or end-to-end latency claim is added.
+The existing benchmark measures book operations only. Milestone 4 adds a separate
+[in-memory dispatch benchmark](benchmarks.md), without a parsing-throughput or
+end-to-end trading latency claim.
 
 ## Deferred scope and LOBSTER
 
 Only one instrument and one tick size per session are supported. There is no
-clock-based pacing, real-time/scaled/step replay, latency simulation, live feed,
-networking, threading, strategy, feature calculation, risk engine, OMS, matching,
-broker API, accounting, persistence, deployment, or trading functionality.
+clock-based pacing, real-time/scaled/step replay, or latency simulation in this
+historical source. Milestone 4 adds a separate experimental IBKR market-data
+source; strategy, feature calculation, risk, OMS, matching, accounting, persistence,
+deployment, and trading functionality remain deferred.
 
 Raw LOBSTER is deliberately not converted here. Its messages are order-level
 events; cancellation sizes are removed quantities rather than absolute remaining

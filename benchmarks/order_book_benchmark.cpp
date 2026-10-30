@@ -30,7 +30,7 @@ int main() {
     double total = 0;
     for (auto sample : samples) total += sample;
     std::sort(samples.begin(), samples.end());
-    std::cout << "batch_mean_ns_per_event p50=" << samples[499]
-              << " p95=" << samples[949] << " p99=" << samples[989]
+    std::cout << "batch_mean_ns_per_event p50=" << samples[499] << "\n"
+              << " p95=" << samples[949] << " p99=" << samples[989] << "\n"
               << " events_per_second=" << 1e9 / (total / static_cast<double>(samples.size())) << '\n';
 }

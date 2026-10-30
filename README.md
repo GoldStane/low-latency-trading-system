@@ -1,12 +1,14 @@
 # low-latency-trading-system
 An event-driven C++ trading-system project, currently implementing offline
-market-data analysis, a price-level order book, and historical normalized-data replay.
+market-data analysis, a price-level order book, deterministic historical replay,
+and a generic event pipeline with experimental IBKR market-data connectivity.
 
 Implemented milestones:
 
 - Milestone 1: offline market-data analysis
 - Milestone 2: C++ event model + price-level order book
 - Milestone 3: C++ historical normalized-data replay
+- Milestone 4: generic event pipeline + optional experimental IBKR market data
 
 The C++ trading runtime is planned; no live trading functionality is enabled.
 
@@ -76,4 +78,22 @@ The deterministic summary reports prices in integer ticks. Read the
 [historical replay guide](docs/cpp-historical-replay.md) for the lifecycle,
 error handling, limitations, and sanitizer commands. The sample files are synthetic;
 the existing multi-instrument `trades.csv` remains for Python analysis.
-Live feeds, broker integration, strategies, and production trading remain unimplemented.
+
+## Milestone 4: event pipeline and experimental IBKR market data
+
+Historical CSV and IBKR sources share `MarketDataSource` and
+`MarketDataSink::on_event()`. Historical BookUpdate events reconstruct the existing
+book; IBKR L1 callbacks produce Quote observations without pretending to provide
+verified depth. Connection state is distinct from book validity.
+
+Normal builds require no IBKR dependencies. `ENABLE_IBKR` defaults to OFF. The
+optional executable is data-only and defaults to the paper TWS port and delayed
+data requests. See [architecture](docs/event-pipeline.md),
+[SDK setup and connectivity experiment](docs/ibkr-market-data.md), and
+[benchmark methodology](docs/benchmarks.md).
+
+This is not a complete trading runtime. Strategies, features/signals, execution,
+risk, OMS, portfolio, matching, persistence, reconciliation, and deployment remain
+unimplemented. No order-submission functionality is introduced. Real quote receipt
+requires a separately authenticated TWS/IB Gateway session and suitable data access;
+offline tests do not establish live connectivity.
